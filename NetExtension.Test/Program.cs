@@ -9,11 +9,11 @@ string moduleName = "DemoBusiness";
 
 ModuleManager.Instance.Initialize();
 
-//ModuleManager.Instance.CreateModule("NetExtension.Business", moduleName, path,null);
+ModuleManager.Instance.CreateModule("NetExtension.Business", moduleName, path,null);
 
 //ModuleManager.Instance.CreateModule<DemoBusiness>();
 
-ModuleManager.Instance.CreateModule(moduleName);
+//ModuleManager.Instance.CreateModule(moduleName);
 
 
 try
@@ -64,7 +64,7 @@ ModuleManager.Instance.HandleMessage(moduleName, "PublicMethod");
 ModuleManager.Instance.HandleMessage(moduleName, "PublicMethod", 1);
 
 
-string message = ModuleManager.Instance.HandleMessage(moduleName, "PublicMethod", "Hello world")?.ToString();
+string message = ModuleManager.Instance.HandleMessage(moduleName, "PublicMethod", "Hello world")?.ToString()??"";
 
 Console.WriteLine(message);
 

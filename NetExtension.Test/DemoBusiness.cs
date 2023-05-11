@@ -9,15 +9,13 @@ namespace NetExtension.Test
 {
     public class DemoBusiness : BusinessModule
     {
-        private string Tag;
-
-
-
-        public override void Create(object arg = null)
+        private string tag = "";
+  
+        public override void Create(object arg)
         {
-            Tag = this.GetType().FullName;
+            tag = GetType()?.FullName??"";
 
-            Console.WriteLine(Tag + " created");
+            Console.WriteLine(tag + " created");
         }
 
         private static void PrivateStaticMethod()
@@ -42,26 +40,24 @@ namespace NetExtension.Test
         protected void ProtectedMethod()
         {
 
-            Console.WriteLine($"{Tag} Protected Method");
+            Console.WriteLine($"{tag} Protected Method");
         }
 
         private void PrivateMethod()
         {
 
-            Console.WriteLine($"{Tag} Private Method");
+            Console.WriteLine($"{tag} Private Method");
         }
 
         public void PublicMethod()
         {
-            Console.WriteLine($"{Tag} Public Method");
+            Console.WriteLine($"{tag} Public Method");
         }
 
 
         public void PublicMethod(int num)
         {
-
-            Console.WriteLine($"{Tag} Public Method ( arg = {num})");
-
+            Console.WriteLine($"{tag} Public Method ( arg = {num})");
         }
 
         public string PublicMethod(string message)
