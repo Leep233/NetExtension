@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 
 namespace NetExtension.Core.Framework
 {
@@ -11,6 +12,7 @@ namespace NetExtension.Core.Framework
     {
         private ModuleEventTable<object> _moduleEventTable;
 
+        private SynchronizationContext? _context;
         /// <summary>
         /// 获取当前业务模块事件表
         /// </summary>
@@ -24,13 +26,17 @@ namespace NetExtension.Core.Framework
             }
         }
 
+        public BusinessModule(){
+            _context = SynchronizationContext.Current;
+        } 
+
         /// <summary>
         /// 创建模块
         /// </summary>
         /// <param name="arg"></param>
         public virtual void Create(object arg = null)
         {
-            
+          
         }
        
         /// <summary>
@@ -80,8 +86,18 @@ namespace NetExtension.Core.Framework
         /// 如果需要显示UI，需要重写
         /// </summary>
         /// <param name="arg"></param>
-        public virtual void ShowUI(params object[] args) { }
+        public  void ShowUI(params object[] args)
+        {
+            if(_context != null)
+            {
+                _context.Post(OnShowUI,args);
+            }
+        }
 
+        protected visual void OnShowUI(params object [] args){
+            
+        }
+        
         /// <summary>
         /// 重写必须调用基类
         /// </summary>
