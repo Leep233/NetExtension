@@ -12,7 +12,7 @@ namespace NetExtension.Core.Framework
     {
         private ModuleEventTable<object> _moduleEventTable;
 
-        private SynchronizationContext? _context;
+        private SynchronizationContext _context;
         /// <summary>
         /// 获取当前业务模块事件表
         /// </summary>
@@ -90,11 +90,11 @@ namespace NetExtension.Core.Framework
         {
             if(_context != null)
             {
-                _context.Post(OnShowUI,args);
+                _context.Post(o => { OnShowUI(o); },args);
             }
         }
 
-        protected visual void OnShowUI(params object [] args){
+        protected virtual void OnShowUI(params object [] args){
             
         }
         
