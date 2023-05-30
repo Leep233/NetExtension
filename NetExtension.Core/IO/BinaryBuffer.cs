@@ -18,7 +18,7 @@ namespace NetExtension.Core.IO
        
        public int ReadableCount =>writedPosition-readedPosition;
        
-       public int WritableCount => Capacity - writedPosition -1;
+       public int WritableCount => Capacity - writedPosition;
        
        private byte[] buffer;
        
@@ -30,7 +30,7 @@ namespace NetExtension.Core.IO
 
        private BinaryBuffer(byte[]buffer,bool isLittleEndian = true){
             this.buffer = buffer;
-            this.writedPosition = this.buffer.Length-1;
+            this.writedPosition = this.buffer.Length;
             this.Capacity =  this.buffer.Length;
             this.readedPosition = 0;
         }
@@ -46,7 +46,7 @@ namespace NetExtension.Core.IO
        
         private  void CapacityExpansion(int needCapacity){
             
-            if(needCapacity < WritableCount ) return;  
+            if(needCapacity <= WritableCount ) return;  
             
             int futureCapacity = (Capacity + needCapacity)<<1;
             
