@@ -8,360 +8,70 @@ namespace NetExtension.Core.IO
     /// <summary>
     /// 
     /// </summary>
-    public class BinaryBuffer : IDisposable
+    public class BinaryBuffer
     {
+       private readonly object BUFFER_LOCKER = new object();
+       
+       private int writedPosition;
+       
+       private int readedPosition;
+       
+       public int ReadableCount =>writedPosition-readedPosition;
+       
+       public int WritableCount => Capacity - writedPosition -1;
+       
+       private byte[] buffer;
+       
+       public byte this[int index]=>buffer[index];
 
-        /// <summary>
-        /// 缓存数组
-        /// </summary>
-        public byte[] Cache { get; private set; }
+       public bool IsLittleEndian { get; set; }
+        
+       public int Capacity{get;protected set;}
 
-        /// <summary>
-        /// 只读缓存
-        /// </summary>
-        public byte[] ReadOnlyCache
-        {
-            get
-            {
-                if (Cache == null || Cache.Length <= 0)
-                    return null;
+       private BinaryBuffer(byte[]buffer,bool isLittleEndian = true){
+            this.buffer = buffer;
+            this.writedPosition = this.buffer.Length-1;
+            this.Capacity =  this.buffer.Length;
+            this.readedPosition = 0;
+        }
+        
+        private BinaryBuffer(int capacity,bool isLittleEndian = true):this(new byte[capacity],isLittleEndian){
+            this.writedPosition =0;
+            this.Capacity = capacity;
+        }
+ 
+        public static BinaryBuffer Allocate(int bufferSize, bool isLittleEndian = true) => new BinaryBuffer(bufferSize, isLittleEndian);
 
-                byte[] data = new byte[Cache.Length];
-
-                Buffer.BlockCopy(Cache, 0, data, 0, data.Length);
-
-                return data;
+        public static BinaryBuffer Allocate(byte[] buffer, bool isLittleEndian = true) => new BinaryBuffer(buffer, isLittleEndian);
+       
+        private  void CapacityExpansion(int needCapacity){
+            
+            if(needCapacity < WritableCount ) return;  
+            
+            int futureCapacity = (Capacity + needCapacity)<<1;
+            
+            byte[]futureBuffer = new futureBuffer;
+            
+            //将原先buffer内的数据拷贝到新的buffer内
+            Buffer.BlockCopy(buffer,this.readedPosition,futureBuffer,0,ReadableCount);
+            
+            this.buffer = futureBuffer;
+            
+            Capacity = futureCapacity;
+        }
+      
+       public void Write(byte[]data,int offset,int count)
+       {
+            lock(BUFFER_LOCKER){
+                CapacityExpansion(count);
+                Buffer.BlockCopy(data,offset,this.buffer,this.writedPosition,count);
+                writedPosition += count;
             }
-        }
+       }
+       
+       public void Write(byte[]data)=>Write(data,0,data.Length);
 
-        /// <summary>
-        /// 大小端 ，默认值 是当前机器的,设置这个值 如果大小端和当前机器不一致，那么写入时将会反转
-        /// </summary>
-        public bool IsLittleEndian { get; set; }
-
-        /// <summary>
-        /// 读到的下标位置
-        /// </summary>
-        public long ReadedPosition { get; set; }
-
-        /// <summary>
-        /// 写的下标位置
-        /// </summary>
-        public long WritedPosition { get; set; }
-
-
-
-        /// <summary>
-        ///当前可以读取的长度
-        /// </summary>
-        public long CanReadSize => (WritedPosition - ReadedPosition);
-
-        private BinaryBuffer(int bufferSize, bool isLittleEndian)
-        {
-            Cache = new byte[bufferSize];
-            IsLittleEndian = isLittleEndian;
-            ReadedPosition = WritedPosition = 0;
-        }
-
-        private BinaryBuffer(byte[] buffer, bool isLittleEndian)
-        {
-            Cache = buffer;
-            IsLittleEndian = isLittleEndian;
-            ReadedPosition = 0;
-            WritedPosition = Cache.Length;
-        }
-
-        /// <summary>
-        /// 分配一段内存
-        /// </summary>
-        /// <param name="bufferSize">内存长度</param>
-        /// <param name="isLittleEndian"></param>
-        /// <returns>缓存对象</returns>
-        public static BinaryBuffer Allocate(int bufferSize, bool isLittleEndian = true) { return new BinaryBuffer(bufferSize, isLittleEndian); }
-
-        /// <summary>
-        /// 分配一段内存 注:这里是浅拷贝
-        /// </summary>
-        /// <param name="buffer">内存</param>
-        /// <param name="isLittleEndian"></param>
-        /// <returns>缓存对象</returns>
-        public static BinaryBuffer Allocate(byte[] buffer, bool isLittleEndian = true)
-        {
-            return new BinaryBuffer(buffer, isLittleEndian);
-        }
-
-        /// <summary>
-        /// 析构 当虚拟机自己判断脚本再无引用时  是否所有内存
-        /// </summary>
-        ~BinaryBuffer()
-        {
-            Dispose();
-        }
-
-        #region [ 读取 ]
-
-        /// <summary>
-        /// 读取指定数量字节
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <param name="count">需要读取的数量</param>
-        /// 
-        /// <returns>读取的字节数组</returns>
-        public byte[] Read(int count)
-        {
-            byte[] data = new byte[count];
-            lock (this)
-            {
-
-                if (CanReadSize < count)
-                    throw new ArgumentOutOfRangeException("可读取长度不足");
-
-                using (BinaryReader reader = new BinaryReader(new MemoryStream(this.Cache) { Position = ReadedPosition }))
-                {
-                    reader.Read(data, 0, count);
-                    ReadedPosition = reader.BaseStream.Position;
-                }
-
-            }
-
-            return data;
-        }
-
-        /// <summary>
-        /// bool值读取
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public bool ReadBoolean()
-        {
-            byte[] data = Read(sizeof(bool));
-            Flip(data);
-            return BitConverter.ToBoolean(data, 0);
-        }
-
-        /// <summary>
-        /// 读取一个字节
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public byte ReadByte()
-        {
-            return Read(sizeof(byte))[0];
-        }
-
-        /// <summary>
-        /// 读取单个字符
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public char ReadChar()
-        {
-            byte[] data = Read(sizeof(char));
-            Flip(data);
-            return BitConverter.ToChar(data, 0);
-        }
-
-        /// <summary>
-        /// 读取字符串
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <param name="count">字符串长度</param>
-        /// <returns>读取值</returns>
-        public string ReadChars(int count, Encoding encoding)
-        {
-            return encoding.GetString(Read(count));
-        }
-
-
-
-        /// <summary>
-        /// 读取decimal
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public decimal ReadDecimal()
-        {
-            decimal value;
-
-            Decimal.TryParse(ReadChars(sizeof(decimal), Encoding.ASCII), out value);
-
-            return value;
-        }
-
-        /// <summary>
-        /// 读取 double
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public double ReadDouble()
-        {
-            byte[] data = Read(sizeof(double));
-            Flip(data);
-            return BitConverter.ToDouble(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 short
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public short ReadInt16()
-        {
-            byte[] data = Read(sizeof(short));
-            Flip(data);
-            return BitConverter.ToInt16(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 int
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public int ReadInt32()
-        {
-            byte[] data = Read(sizeof(int));
-            Flip(data);
-            return BitConverter.ToInt32(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 long
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        /// <returns>读取值</returns>
-        public long ReadInt64()
-        {
-            byte[] data = Read(sizeof(long));
-            Flip(data);
-            return BitConverter.ToInt64(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 float
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        public float ReadSingle()
-        {
-            byte[] data = Read(sizeof(float));
-            Flip(data);
-            return BitConverter.ToSingle(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 ushort
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        public ushort ReadUInt16()
-        {
-            byte[] data = Read(sizeof(ushort));
-            Flip(data);
-
-            return BitConverter.ToUInt16(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 uint
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        public uint ReadUInt32()
-        {
-            byte[] data = Read(sizeof(uint));
-            Flip(data);
-
-            return BitConverter.ToUInt32(data, 0);
-        }
-
-        /// <summary>
-        /// 读取 ulong
-        /// <para>
-        /// 抛出异常 ： LengthException，ArgumentExcePtion;   
-        /// </para>
-        /// </summary>
-        public ulong ReadUInt64()
-        {
-            byte[] data = Read(sizeof(ulong));
-            Flip(data);
-            return BitConverter.ToUInt64(data, 0);
-        }
-
-        #endregion
-
-        #region [ 写入 ]
-
-        /// <summary>
-        ///  /// <summary>
-        /// 往缓存区写入一个数组
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        /// </summary>
-        /// <param name="data"></param>
-        /// <param name="index"></param>
-        /// <param name="count"></param>
-        /// <param name="isFlip">是否需要反转</param>
-        public void Write(byte[] data, int index, int count)
-        {
-            lock (this)
-            {
-                //如果需要扩充缓存区进行扩充
-                TruncateCache(count);
-
-                using (BinaryWriter writer = new BinaryWriter(new MemoryStream(Cache) { Position = WritedPosition }))
-                {
-                    writer.Write(data, index, count);
-                    writer.Flush();
-
-                    WritedPosition = writer.BaseStream.Position;
-
-                }
-            }
-        }
-
-        /// <summary>
-        /// 往缓存区写入字符串
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(string value, Encoding encoding)
-        {
-            byte[] data = encoding.GetBytes(value);
-            Write(data, 0, data.Length);
-        }
-
-        /// <summary>
-        /// 往缓存区写入一个 float
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
+    
         public void Write(float value)
         {
             byte[] data = BitConverter.GetBytes(value);
@@ -369,182 +79,127 @@ namespace NetExtension.Core.IO
             Write(data, 0, data.Length);
         }
 
-        /// <summary>
-        /// 往缓存区写入一个 double
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
         public void Write(double value)
         {
             byte[] data = BitConverter.GetBytes(value);
             Flip(data);
             Write(data, 0, data.Length);
         }
-    
-        /// <summary>
-        /// 往缓存区写入一个 char
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
         public void Write(char value)
         {
             byte[] data = BitConverter.GetBytes(value);
             Flip(data);
             Write(data, 0, data.Length);
         }
-
-        /// <summary>
-        /// 往缓存区写入一个 byte
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
         public void Write(byte value)
         {
             byte[] data = new byte[] { value };
             Write(data, 0, 1);
         }
-
-        /// <summary>
-        /// 往缓存区写入一个 bool
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(bool value)
+        public void Write(short value) 
         {
             byte[] data = BitConverter.GetBytes(value);
             Flip(data);
             Write(data, 0, data.Length);
         }
-
-        /// <summary>
-        /// 往缓存区写入一个 Int16
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(Int16 value)
+        
+        public void Write(ushort value) 
         {
             byte[] data = BitConverter.GetBytes(value);
             Flip(data);
             Write(data, 0, data.Length);
         }
-
-
-        /// <summary>
-        /// 往缓存区写入一个 UInt16
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(UInt16 value)
+        
+        public void Write(int value)
+         {
+            byte[] data = BitConverter.GetBytes(value);
+            Flip(data);
+            Write(data, 0, data.Length);
+        }
+        
+        public void Write(uint value)
+         {
+            byte[] data = BitConverter.GetBytes(value);
+            Flip(data);
+            Write(data, 0, data.Length);
+        }
+        
+        public void Write(long value)
+         {
+            byte[] data = BitConverter.GetBytes(value);
+            Flip(data);
+            Write(data, 0, data.Length);
+        }
+        
+        public void Write(ulong value)
         {
             byte[] data = BitConverter.GetBytes(value);
             Flip(data);
             Write(data, 0, data.Length);
         }
-
-
-        /// <summary>
-        /// 往缓存区写入一个 Int32
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(Int32 value)
-        {
-            byte[] data = BitConverter.GetBytes(value);
-            Flip(data);
-            Write(data, 0, data.Length);
+        
+        public byte[] Read(int count){
+            
+            if(count>ReadableCount) throw new ArgumentOutOfRangeException();
+            
+            byte[] data = new byte[count];
+            
+            lock(BUFFER_LOCKER){
+                Buffer.BlockCopy(this.buffer,this.readedPosition,data,0,count);
+                this.readedPosition+=count;
+                Buffer.BlockCopy(this.buffer,this.readedPosition,this.buffer,0,ReadableCount);
+                this.writedPosition = ReadableCount;
+                this.readedPosition = 0;
+            } 
+            
+            return data;
         }
-
-
-        /// <summary>
-        /// 往缓存区写入一个 UInt32
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(UInt32 value)
-        {
-            byte[] data = BitConverter.GetBytes(value);
-            Flip(data);
-            Write(data, 0, data.Length);
+        
+        public byte ReadByte(){
+            return Read(1)[0];
         }
-
-
-        /// <summary>
-        /// 往缓存区写入一个 Int64
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(Int64 value)
-        {
-            byte[] data = BitConverter.GetBytes(value);
-            Flip(data);
-            Write(data, 0, data.Length);
+        
+        public short ReadInt16()
+           {
+            int count = sizeof(short);
+            return BitConverter.ToInt16( Flip(Read(count)),0);
         }
-
-        /// <summary>
-        /// 往缓存区写入一个 UInt64
-        /// <para>
-        /// 抛出异常 ： ArgumentException，ArgumentNullException，ArgumentOutOfRangeException，IOException，ObjectDisposedException;   
-        /// </para>
-        /// </summary>
-        public void Write(UInt64 value)
-        {
-            byte[] data = BitConverter.GetBytes(value);
-            Flip(data);
-            Write(data, 0, data.Length);
+        public ushort ReadUInt16()
+           {
+            int count = sizeof(ushort);
+            return BitConverter.ToUInt16( Flip(Read(count)),0);
         }
-
-        #endregion
-
-        /// <summary>
-        /// 释放组件所有资源
-        /// </summary>
-        public void Dispose()
-        {
-
+        public int ReadInt32()
+           {
+            int count = sizeof(int);
+            return BitConverter.ToInt32( Flip(Read(count)),0);
         }
-
-        /// <summary>
-        /// 扩充缓存区 
-        /// </summary>
-        /// <param name="count">需要写入缓存的大小</param>
-        /// <returns></returns>
-        private bool TruncateCache(int count)
-        {
-            bool needTruncate = false;
-
-            int remainingSize = (int)(Cache.Length - WritedPosition);
-
-            if (remainingSize < count)
-            {
-
-                int expansionSize = (Cache.Length + count) << 1; // 扩充大小  size * 2
-
-                byte[] funtrueBuffer = new byte[expansionSize];
-
-                System.Buffer.BlockCopy(Cache, 0, funtrueBuffer, 0, Cache.Length);
-
-                this.Cache = funtrueBuffer;
-
-                needTruncate = true;
-            }
-
-            return needTruncate;
+        public uint ReadUInt32()
+          {
+            int count = sizeof(uint);
+            return BitConverter.ToUInt32( Flip(Read(count)),0);
         }
-
-        /// <summary>
-        /// 如果输入大小端与当前系统大小端不一致 需要反转
-        /// </summary>
-        /// <param name="content"></param>
-        /// <returns></returns>
+        public long ReadInt64()
+         {
+            int count = sizeof(long);
+            return BitConverter.ToInt64( Flip(Read(count)),0);
+        }
+        public ulong ReadUInt64()
+        {
+            int count = sizeof(ulong);
+            return BitConverter.ToUInt64( Flip(Read(count)),0);
+        }
+        public float ReadSingle()
+        {
+            int count = sizeof(float);
+            return BitConverter.ToSingle( Flip(Read(count)),0);
+        }
+        
+        public double ReadDouble(){
+            int count = sizeof(double);
+            return BitConverter.ToDouble( Flip(Read(count)),0);
+        }
+        
         private byte[] Flip(byte[] content)
         {
             if (IsLittleEndian != BitConverter.IsLittleEndian)
