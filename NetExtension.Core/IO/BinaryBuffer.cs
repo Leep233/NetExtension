@@ -32,6 +32,7 @@ namespace NetExtension.Core.IO
             this.buffer = buffer;
             this.writedPosition = this.buffer.Length;
             this.Capacity =  this.buffer.Length;
+           this.IsLittleEndian = isLittleEndian;
             this.readedPosition = 0;
         }
         
