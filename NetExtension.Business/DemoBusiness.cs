@@ -20,6 +20,7 @@ namespace NetExtension.Business
         {
 
             Console.WriteLine($"Private Static Method");
+
         }
 
 
@@ -50,6 +51,9 @@ namespace NetExtension.Business
         public void PublicMethod()
         {
             Console.WriteLine($"{Tag} Public Method");
+
+
+            Invoke("Hello", "World");
         }
 
 

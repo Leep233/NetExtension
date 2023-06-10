@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Threading;
 
-namespace NetExtension.MVVM
+namespace NetExtension.Command
 {
 
     public class DelegateCommand : ICommand

@@ -8,7 +8,7 @@ namespace NetExtension.Core.Framework
     /// <summary>
     /// 模块事件表
     /// </summary>
-    internal class ModuleEventTable<T>
+    internal class ModuleEventTable <T>
     {
         private Dictionary<string, FrameworkEvent<T>> _eventTables;
 

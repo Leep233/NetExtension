@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using static NetExtension.Core.Framework.BusinessModule;
 
 namespace NetExtension.Core.Framework
 {
@@ -14,40 +15,21 @@ namespace NetExtension.Core.Framework
     {
 
         public event EventHandler<string> ModuleCreationFailured;
+
         /// <summary>
         /// 
         /// </summary>
-        private Dictionary<string, BusinessModule> _loadedModule;
-
-        /// <summary>
-        /// 已加载模块
-        /// </summary>
-        /// <returns></returns>
-        public Dictionary<string, BusinessModule> LoadedModules
-        {
-            get
-            {
-                if (_loadedModule == null)
-                    _loadedModule = new Dictionary<string, BusinessModule>();
-                return _loadedModule;
-            }
-        }
+        private  Dictionary<string, BusinessModule> loadedModuls;
 
         /// <summary>
         /// 模块还未创建时 需要等待监听的事件
         /// </summary>
-        private Dictionary<string, ModuleEventTable<object>> _perListenerEvents;
+        private Dictionary<string, ModuleEventTable<object>> perlistenerEvents;
 
         /// <summary>
         /// 模块还未创建时 需要等待处理的事件
         /// </summary>
-        private Dictionary<string, List<ModuleMessage>> _perHandleMessages;
-
-        /// <summary>
-        ///  业务模块实例所在的程序域(命名空间)
-        /// </summary>
-        public string DefualtDomain { get; set; }
-
+        private Dictionary<string, List<ModuleMessage>> perprocessingMsg;
 
         /// <summary>
         /// 业务模块管理初始化
@@ -55,11 +37,11 @@ namespace NetExtension.Core.Framework
         /// <param name="arg">业务模块实例所在的命名空间</param>
         public override void Initialize(object arg = null)
         {
-            _perListenerEvents = new Dictionary<string, ModuleEventTable<object>>();
+            loadedModuls = new Dictionary<string, BusinessModule>();
 
-            _perHandleMessages = new Dictionary<string, List<ModuleMessage>>();
+            perlistenerEvents = new Dictionary<string, ModuleEventTable<object>>();
 
-            DefualtDomain = arg != null ? arg.ToString() : AppDomain.CurrentDomain.FriendlyName;
+            perprocessingMsg = new Dictionary<string, List<ModuleMessage>>();
 
             base.Initialize(arg);
         }
@@ -70,13 +52,13 @@ namespace NetExtension.Core.Framework
         /// <typeparam name="T"></typeparam>
         /// <param name="arg"></param>
         /// <returns></returns>
-        public T CreateModule<T>(object arg = null) where T : BusinessModule
+        public T Register<T>(object arg = null) where T : BusinessModule
         {
             Type type = typeof(T);
 
             string moduleName = type.Name;
    
-            return BuildModuleInstance(moduleName, type, arg) as T;   
+            return CreateInstance(moduleName, type, arg) as T;   
         }
 
         /// <summary>
@@ -86,19 +68,47 @@ namespace NetExtension.Core.Framework
         /// <param name="assemblyName">所在程序集名称</param>
         /// <param name="arg">创建参数</param>
         /// <returns></returns>
-        public BusinessModule CreateModule(string moduleName, object arg = null)
+        public BusinessModule Register(string domain,string moduleName, object arg = null)
         {
-           string typePath = $"{DefualtDomain}.{moduleName}";
+            string typePath = string.Format("{0}.{1}", domain, moduleName);
 
             Assembly assembly = Assembly.GetEntryAssembly();
 
-            Type type = assembly.GetType(typePath);      
+            Type type = assembly.GetType(typePath); //Type.GetType(typePath, false);// 
 
-            return BuildModuleInstance(moduleName, type, arg);
+            BusinessModule module = CreateInstance(moduleName, type, arg);
+
+            if (module != null)
+                loadedModuls.Add(moduleName, module);
+
+            return module;
         }
 
+        /// <summary>
+        /// 创建业务模块
+        /// </summary>
+        /// <param name="domain">模块所在程序域（命名空间）名称</param>
+        /// <param name="moduleName">模块类名</param>
+        /// <param name="assemblyName">所在程序集名称</param>
+        /// <param name="arg">创建参数</param>
+        /// <returns></returns>
+        public BusinessModule RegisterByAssembly(string assemblyFile, string domain, string moduleName, object arg)
+        {
+            string typePath = $"{domain}.{moduleName}";
 
-        private BusinessModule BuildModuleInstance(string moduleName,Type type,object arg) 
+            Assembly assembly = Assembly.LoadFrom(assemblyFile);
+
+            Type type = assembly.GetType(typePath);
+
+            BusinessModule module = CreateInstance(moduleName, type, arg);
+
+            if (module != null)
+                loadedModuls.Add(moduleName, module);
+
+            return module;
+        }
+
+        private BusinessModule CreateInstance(string moduleName,Type type,object arg) 
         {
             BusinessModule module = null;
 
@@ -116,46 +126,37 @@ namespace NetExtension.Core.Framework
                 }
                 else
                 {
+                    module.Name = moduleName;
+
+                    if (perlistenerEvents.ContainsKey(moduleName))
+                    {
+                        module.SetEventTable(perlistenerEvents[moduleName]);
+                        perlistenerEvents.Remove(moduleName);
+                    }
+                    
                     module.Create(arg);
 
-                    if (_perListenerEvents.ContainsKey(moduleName))
-                        module.SetEventTable(_perListenerEvents[moduleName]);
-
-                    if (_perHandleMessages.ContainsKey(moduleName))
+                    if (perprocessingMsg.ContainsKey(moduleName))
                     {
-                        List<ModuleMessage> msgList = _perHandleMessages[moduleName];
+                        List<ModuleMessage> msgList = perprocessingMsg[moduleName];
 
                         for (int i = 0; i < msgList.Count; i++)
                         {
-                            module.HandleMessage(msgList[i].MethodName, msgList[i].Args);
+                            module.HandleMessage(msgList[i].Method, msgList[i].Args);
                         }
+
+                        perprocessingMsg[moduleName].Clear();
+
+                        perprocessingMsg.Remove(moduleName);
                     }
 
-                    LoadedModules.Add(moduleName, module);
                 }
             }
             return module;
         }
 
 
-        /// <summary>
-        /// 创建业务模块
-        /// </summary>
-        /// <param name="domain">模块所在程序域（命名空间）名称</param>
-        /// <param name="moduleName">模块类名</param>
-        /// <param name="assemblyName">所在程序集名称</param>
-        /// <param name="arg">创建参数</param>
-        /// <returns></returns>
-        public BusinessModule CreateModule(string domain, string moduleName, string assemblyFullPath,  object arg)
-        {
-            string typePath = $"{domain}.{moduleName}";
-
-            Assembly assembly = Assembly.LoadFrom(assemblyFullPath);
-
-            Type type = assembly.GetType(typePath);
-
-            return BuildModuleInstance(moduleName,type,arg);
-        }
+  
 
         /// <summary>
         /// 获取已经加载的模块
@@ -174,8 +175,8 @@ namespace NetExtension.Core.Framework
         /// <returns></returns>
         public BusinessModule Module(string moduleName)
         {
-            if (LoadedModules.ContainsKey(moduleName))
-                return LoadedModules[moduleName];
+            if (loadedModuls.ContainsKey(moduleName))
+                return loadedModuls[moduleName];
             return null;
         }
 
@@ -186,17 +187,17 @@ namespace NetExtension.Core.Framework
         /// <param name="moduleName">模块名称</param>
         /// <param name="eventName">事件名称</param>
         /// <returns></returns>
-        public FrameworkEvent<object> Event(string moduleName, string eventName)
+        public IListener<Action<object>> Event(string moduleName, string eventName)
         {
-            FrameworkEvent<object> frameworkEvent = null;
+            IListener<Action<object>> frameworkEvent = null;
 
-            if (LoadedModules.ContainsKey(moduleName))
+            if (loadedModuls.ContainsKey(moduleName))
             {
-                frameworkEvent = LoadedModules[moduleName].Event(eventName);
+                frameworkEvent = loadedModuls[moduleName].Event(eventName);
             }
             else
             {
-                frameworkEvent = PerListenerEvents(moduleName, eventName);
+                frameworkEvent = PerlistenerEvent(moduleName, eventName);
             }
             return frameworkEvent;
         }
@@ -207,20 +208,55 @@ namespace NetExtension.Core.Framework
         /// <param name="moduleName">模块名称</param>
         /// <param name="methodName">函数名称</param>
         /// <param name="args">函数参数</param>
-        public object HandleMessage(string moduleName, string methodName, params object[] args)
+        public ModuleResult SendMessage(string moduleName, string methodName, params object[] args)
         {
-            object arg = null;
+            ModuleResult result = new ModuleResult();
 
-            if (LoadedModules.ContainsKey(moduleName))
+            if (loadedModuls.ContainsKey(moduleName))
             {
-                arg = LoadedModules[moduleName].HandleMessage(methodName, args);
+                result.Result = loadedModuls[moduleName].HandleMessage(methodName, args);
             }
             else
             {
-                PerHandleMessage(moduleName).Add(new ModuleMessage() { MethodName = methodName, Args = args });
+                PerprocessingMessageList(moduleName).Add(new ModuleMessage(moduleName,methodName, args));
+
+                result.Error = string.Format("[{0}] not created !!! we'll cache until {0} to created.",moduleName);
             }
 
-            return arg;
+            return result;
+        }
+
+        /// <summary>
+        /// 指定模块需要处理的函数 ,如果模块未创建 将会缓存，待模块创建时执行
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// 
+        ///  ModuleResult<int> result =  ModuleManager.Instance.SendMessage<int>("TestBinsinssModule","Sum",1,2);
+        ///  
+        ///  Debug.WriteLine(result.Result);
+        ///  
+        /// </code>
+        /// </example>
+        /// <param name="moduleName">模块名称</param>
+        /// <param name="methodName">函数名称</param>
+        /// <param name="args">函数参数</param>
+        public ModuleResult<T> SendMessage<T>(string moduleName, string methodName, params object[] args)
+        {
+            ModuleResult<T> result = new ModuleResult<T>();
+
+            if (loadedModuls.ContainsKey(moduleName))
+            {
+                result.Result = (T)loadedModuls[moduleName].HandleMessage(methodName, args);
+            }
+            else
+            {
+                PerprocessingMessageList(moduleName).Add(new ModuleMessage(moduleName, methodName, args));
+
+                result.Error = string.Format("[{0}] not created !!! we'll cache until {0} to created.", moduleName);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -230,72 +266,82 @@ namespace NetExtension.Core.Framework
         /// <param name="arg"></param>
         public void ShowUI(string moduleName, object arg)
         {
-            HandleMessage(moduleName, "ShowUI", arg);
+            SendMessage(moduleName, "ShowUI", arg);
         }
 
         /// <summary>
-        /// 释放模块
+        /// 释放所有注册过的模块
         /// </summary>
         /// <param name="arg"></param>
         public override void Release(params object [] arg)
         {
-            if (_perListenerEvents != null)
+            if (perlistenerEvents != null)
             {
-                foreach (var item in _perListenerEvents)
+                foreach (var item in perlistenerEvents)
                 {
                     item.Value.Clear();
                 }
-                _perListenerEvents.Clear();
+                perlistenerEvents.Clear();
             }
 
-            if (_perHandleMessages != null)
+            if (perprocessingMsg != null)
             {
-                foreach (var item in _perHandleMessages)
+                foreach (var item in perprocessingMsg)
                 {
                     item.Value.Clear();
                 }
-                _perHandleMessages.Clear();
+                perprocessingMsg.Clear();
             }
 
-            if (_loadedModule != null)
+            if (loadedModuls != null)
             {
-                foreach (var item in _loadedModule)
+                foreach (var item in loadedModuls)
                 {
                     item.Value.Release();
                 }
-                _loadedModule.Clear();
+                loadedModuls.Clear();
             }
         }
 
-        private FrameworkEvent<object> PerListenerEvents(string moduleName, string eventName)
+        private FrameworkEvent<object> PerlistenerEvent(string moduleName, string eventName)
         {
-            if (!_perListenerEvents.ContainsKey(moduleName))
-                _perListenerEvents.Add(moduleName, new ModuleEventTable<object>());
+            if (!perlistenerEvents.ContainsKey(moduleName))
+                perlistenerEvents.Add(moduleName, new ModuleEventTable<object>());
 
-            return _perListenerEvents[moduleName].Event(eventName);
+            return perlistenerEvents[moduleName].Event(eventName);
         }
 
-        private List<ModuleMessage> PerHandleMessage(string moduleName)
+        private List<ModuleMessage> PerprocessingMessageList(string moduleName)
         {
-            if (!_perHandleMessages.ContainsKey(moduleName))
-                _perHandleMessages.Add(moduleName, new List<ModuleMessage>());
+            if (!perprocessingMsg.ContainsKey(moduleName))
+                perprocessingMsg.Add(moduleName, new List<ModuleMessage>());
 
-            return _perHandleMessages[moduleName];
+            return perprocessingMsg[moduleName];
 
         }
+      
         /// <summary>
         /// 
         /// </summary>
          class ModuleMessage
         {
+
+            public string  Module { get; set; }
             /// <summary>
             /// 函数名称
             /// </summary>
-            public string MethodName { get; set; }
+            public string Method { get; set; }
             /// <summary>
             /// 函数需要传入的参数
             /// </summary>
             public object[] Args { get; set; }
+
+            public ModuleMessage(string module,string method,object [] args)
+            {
+                Module = module;
+                Method = method;
+                Args = args;
+            }
         }
     }
 }

@@ -50,8 +50,8 @@ namespace NetExtension.Core.IO
             if(needCapacity <= WritableCount ) return;  
             
             int futureCapacity = (Capacity + needCapacity)<<1;
-            
-            byte[]futureBuffer = new futureBuffer;
+
+            byte[] futureBuffer = new byte[futureCapacity];
             
             //将原先buffer内的数据拷贝到新的buffer内
             Buffer.BlockCopy(buffer,this.readedPosition,futureBuffer,0,ReadableCount);

@@ -11,7 +11,7 @@ namespace NetExtension.Core.Events
 
     public class FrameworkEvent<T> : EventBase<T>
     {
-
+    
     }
 
     public class FrameworkEvent<T0,T1> : EventBase<T0, T1>

@@ -9,19 +9,19 @@ namespace NetExtension.Test
 {
     public class DemoBusiness : BusinessModule
     {
-        private string tag = "";
-  
+
         public override void Create(object arg)
         {
-            tag = GetType()?.FullName??"";
 
-            Console.WriteLine(tag + " created");
+            base.Create(arg);
         }
 
         private static void PrivateStaticMethod()
         {
 
             Console.WriteLine($"Private Static Method");
+         
+
         }
 
 
@@ -29,6 +29,8 @@ namespace NetExtension.Test
         {
 
             Console.WriteLine("Protected Static Method");
+
+      
         }
 
         public static void PublicStaticMethod()
@@ -40,24 +42,28 @@ namespace NetExtension.Test
         protected void ProtectedMethod()
         {
 
-            Console.WriteLine($"{tag} Protected Method");
+            Console.WriteLine($"{Name} Protected Method");
         }
 
         private void PrivateMethod()
         {
 
-            Console.WriteLine($"{tag} Private Method");
+            Console.WriteLine($"{Name} Private Method");
+
+           
         }
 
         public void PublicMethod()
         {
-            Console.WriteLine($"{tag} Public Method");
+            Console.WriteLine($"{Name} Public Method");
+
+            Invoke("OnMethod","Method is Runing");
         }
 
 
         public void PublicMethod(int num)
         {
-            Console.WriteLine($"{tag} Public Method ( arg = {num})");
+            Console.WriteLine($"{Name} Public Method ( arg = {num})");
         }
 
         public string PublicMethod(string message)

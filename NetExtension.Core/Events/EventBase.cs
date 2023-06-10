@@ -10,8 +10,7 @@ namespace NetExtension.Core.Events
 
         void AddListener(T arg);
         void RemoveListener(T arg);
-        void Clear();
-
+      
     }
 
     public abstract class EventBase: IListener<Action>
@@ -53,7 +52,7 @@ namespace NetExtension.Core.Events
         }
         public virtual void Clear() { listeners = null; }
 
-        public void Invoke(T arg)
+        public virtual void Invoke(T arg)
         {
             listeners?.Invoke(arg);
         }
