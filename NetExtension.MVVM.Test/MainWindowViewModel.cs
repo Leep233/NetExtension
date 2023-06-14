@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NetExtension.Command;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,12 +10,13 @@ namespace NetExtension.MVVM.Test
 {
     public class MainWindowViewModel:BindableBase
     {
-        private string? name;
+        private string name=string.Empty;
 
-        public string? Name
+        public string Name
         {
             get { return name; }
-            set { if (SetProperty(ref name, value, nameof(Name))) {
+            set { if (SetProperty(ref name, value, nameof(Name))) 
+                {
                     SetNameCommand.RaiseCanExecuteChanged();
                 } }
         }
