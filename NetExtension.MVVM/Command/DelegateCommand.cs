@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Threading;
 
@@ -23,32 +19,25 @@ namespace NetExtension.Command
 
         private readonly ICommand command;
 
-   
+
         bool ICommand.CanExecute(object? parameter)
         {
-            bool canExe = true;
-
-            if (canExecute is not null)
-                canExe = canExecute.Invoke();
-
-            return canExe;
+            return (canExecute is null) ? true : canExecute.Invoke();
         }
 
-        public  void Execute(object? parameter)
+        void ICommand.Execute(object? parameter)
         {
-            if (execute is not null)
-                execute.Invoke();
-
-            CanExecuteChanged?.Invoke(this, new EventArgs());
+            execute?.Invoke();
         }
 
-        public bool CanExecute() {
+        public bool CanExecute()
+        {
             return command.CanExecute(null);
         }
-  
-        public void Execute() 
+
+        public void Execute()
         {
-            command.Execute(null) ;
+            command.Execute(null);
         }
 
         public DelegateCommand(Func<bool> canExecute, Action execute)
@@ -60,17 +49,17 @@ namespace NetExtension.Command
             this.command = this;
 
             _synchronizationContext = SynchronizationContext.Current;
-
         }
 
-        public void RaiseCanExecuteChanged() {
+        public void RaiseCanExecuteChanged()
+        {
             if (_synchronizationContext != null)
             {
-                _synchronizationContext.Post(o => { CanExecuteChanged?.Invoke(o, EventArgs.Empty); }, null);
+                _synchronizationContext.Post(o => { CanExecuteChanged?.Invoke(o, EventArgs.Empty); }, EventArgs.Empty);
             }
-            else 
+            else
             {
-                CanExecuteChanged?.Invoke(null, EventArgs.Empty);
+                CanExecuteChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -80,45 +69,63 @@ namespace NetExtension.Command
     {
         public event EventHandler? CanExecuteChanged;
 
+        private readonly SynchronizationContext? _synchronizationContext;
 
-        private Func<T,bool> canExecute;
+        private Func<T, bool> canExecute;
 
         private Action<T> execute;
 
         private readonly ICommand command;
-       public bool CanExecute(object? parameter)
-        {
-            bool canExe = true;
 
-            if (canExecute is not null) 
-            { 
-                if(parameter is T args)
-                    canExe = canExecute.Invoke(args);
-            }
-               
-
-            return canExe;
-        }
-
-        public void Execute(object? parameter)
-        {
-            if (execute is not null)
-            {
-                if (parameter is T args)
-                    execute.Invoke(args);
-            }                
-        }
-
-    
-
-        public DelegateCommand(Func<T,bool> canExecute, Action<T> execute)
+        public DelegateCommand(Func<T, bool> canExecute, Action<T> execute)
         {
             this.canExecute = canExecute;
 
             this.execute = execute;
 
             this.command = this;
-        }
-    }
 
+            _synchronizationContext = SynchronizationContext.Current;
+        }
+
+
+         bool ICommand.CanExecute(object? parameter)
+        {
+
+           return (parameter is T param)?CanExecute(param):true;
+        }
+
+         void ICommand.Execute(object? parameter)
+        {
+            if (parameter is T args)
+            {
+                Execute(args);
+            }
+        }
+
+
+        public bool CanExecute(T parameter)
+        {
+            return canExecute is null ? true : canExecute.Invoke(parameter);
+        }
+
+        public void Execute(T parameter)
+        {
+             execute?.Invoke(parameter);
+        }
+
+        public void RaiseCanExecuteChanged()
+        {
+            if (_synchronizationContext != null)
+            {
+                _synchronizationContext.Post(o => { CanExecuteChanged?.Invoke(o, EventArgs.Empty); }, null);
+            }
+            else
+            {
+                CanExecuteChanged?.Invoke(null, EventArgs.Empty);
+            }
+        }
+
+
+    }
 }

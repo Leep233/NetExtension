@@ -21,25 +21,40 @@ namespace NetExtension.MVVM.Test
                 } }
         }
 
+        private string password = string.Empty;
 
-        public DelegateCommand SetNameCommand { get; set; }
+        public string Password
+        {
+            get { return password; }
+            set
+            {
+                if (SetProperty(ref password, value, nameof(Password)))
+                {
+                }
+            }
+        }
+
+        public DelegateCommand<string> SetNameCommand { get; set; }
 
         public MainWindowViewModel()
         {
-            SetNameCommand = new DelegateCommand(CanExecuteSetNameCommand, ExecuteSetNameCommand);
+            SetNameCommand = new DelegateCommand<string>(CanExecuteSetNameCommand, ExecuteSetNameCommand);
      
         }
 
     
 
-        private void ExecuteSetNameCommand()
+        private void ExecuteSetNameCommand(string password)
         {
             Name = "张三";
+            
+
+            Console.WriteLine(this.Password);
         }
 
-        private bool CanExecuteSetNameCommand()
+        private bool CanExecuteSetNameCommand(string password)
         {
-            return string.IsNullOrEmpty(Name);
+            return true;// string.IsNullOrEmpty(Name);
         }
     }
 }

@@ -8,9 +8,11 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <StackPanel>
-            <TextBox Text="{Binding Name,Mode=TwoWay}"></TextBox>
-            <Button Command="{Binding SetNameCommand}">设置名字</Button>
-            <TextBox Text="11"></TextBox>
+          
+            <TextBox x:Name="tb" Text="{Binding Name,Mode=TwoWay}"></TextBox>
+            <PasswordBox local:PasswordBoxExtension.Password="{Binding Password,UpdateSourceTrigger=PropertyChanged}"></PasswordBox>
+            <Button Command="{Binding SetNameCommand}" CommandParameter="{Binding ElementName=tb,Path=Text}">设置名字</Button>
+         
         </StackPanel>
     </Grid>
 </Window>

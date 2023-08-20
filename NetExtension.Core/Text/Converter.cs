@@ -9,6 +9,9 @@ namespace NetExtension.Core.Text
     /// </summary>
     public static class StringConverter
     {
+
+        private const string HEX_PRIFEX = "0x";
+
         /// <summary>
         /// Hex 转 byte数组
         /// </summary>
@@ -16,7 +19,11 @@ namespace NetExtension.Core.Text
         /// <returns></returns>
         public static byte[] HexStringToBytes(string hexString)
         {
-            hexString = hexString.Replace(" ", "").Replace(",", "").Replace("0x", "").Replace("0X", "").Replace("\n", "");
+            hexString = hexString.Replace("\n", "").
+                Replace(" ", "").
+                Replace(",", "").ToLower().
+                Replace(HEX_PRIFEX, "");
+              
             if ((hexString.Length % 2) != 0)
                 hexString += " ";
             byte[] returnBytes = new byte[hexString.Length / 2];
@@ -37,7 +44,7 @@ namespace NetExtension.Core.Text
             {
                 for (int i = 0; i < bytes.Length; i++)
                 {
-                    returnStr += string.Format(" {0}", bytes[i].ToString("X2"));
+                    returnStr += string.Format(" {0}{1}", HEX_PRIFEX,bytes[i].ToString("X2"));
                 }
             }
             return returnStr;
