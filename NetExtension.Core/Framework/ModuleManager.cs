@@ -57,8 +57,14 @@ namespace NetExtension.Core.Framework
             Type type = typeof(T);
 
             string moduleName = type.Name;
-   
-            return CreateInstance(moduleName, type, arg) as T;   
+
+            BusinessModule module = CreateInstance(moduleName, type, arg) ;
+
+            if (module != null)
+                loadedModuls.Add(moduleName, module);
+
+            return module as T;
+
         }
 
         /// <summary>
@@ -108,6 +114,31 @@ namespace NetExtension.Core.Framework
             return module;
         }
 
+        /// <summary>
+        /// 创建业务模块
+        /// </summary>
+        /// <param name="domain">模块所在程序域（命名空间）名称</param>
+        /// <param name="moduleName">模块类名</param>
+        /// <param name="assemblyName">所在程序集名称</param>
+        /// <param name="arg">创建参数</param>
+        /// <returns></returns>
+        public T RegisterByAssembly<T>(string assemblyFile, string domain, string moduleName, object arg) where T : BusinessModule
+        {
+            string typePath = $"{domain}.{moduleName}";
+
+            Assembly assembly = Assembly.LoadFrom(assemblyFile);
+
+            Type type = assembly.GetType(typePath);
+
+            BusinessModule module = CreateInstance(moduleName, type, arg);
+
+            if (module != null)
+                loadedModuls.Add(moduleName, module);
+
+            return module as T;
+        }
+
+
         private BusinessModule CreateInstance(string moduleName,Type type,object arg) 
         {
             BusinessModule module = null;
@@ -149,7 +180,6 @@ namespace NetExtension.Core.Framework
 
                         perprocessingMsg.Remove(moduleName);
                     }
-
                 }
             }
             return module;
@@ -208,19 +238,27 @@ namespace NetExtension.Core.Framework
         /// <param name="moduleName">模块名称</param>
         /// <param name="methodName">函数名称</param>
         /// <param name="args">函数参数</param>
-        public ModuleResult SendMessage(string moduleName, string methodName, params object[] args)
+        public IModuleResult SendMessage(string moduleName, string methodName, params object[] args)
         {
             ModuleResult result = new ModuleResult();
 
             if (loadedModuls.ContainsKey(moduleName))
             {
-                result.Result = loadedModuls[moduleName].HandleMessage(methodName, args);
+                try
+                {
+                    result.Content = loadedModuls[moduleName].HandleMessage(methodName, args);
+
+                }
+                catch (Exception ex)
+                {
+                    result.Exception = ex;
+                }
             }
             else
             {
                 PerprocessingMessageList(moduleName).Add(new ModuleMessage(moduleName,methodName, args));
 
-                result.Error = string.Format("[{0}] not created !!! we'll cache until {0} to created.",moduleName);
+                result.Message = string.Format("[{0}] not created !!! we'll cache until {0} to created.",moduleName);
             }
 
             return result;
@@ -241,19 +279,27 @@ namespace NetExtension.Core.Framework
         /// <param name="moduleName">模块名称</param>
         /// <param name="methodName">函数名称</param>
         /// <param name="args">函数参数</param>
-        public ModuleResult<T> SendMessage<T>(string moduleName, string methodName, params object[] args)
+        public IModuleResult<T> SendMessage<T>(string moduleName, string methodName, params object[] args)
         {
             ModuleResult<T> result = new ModuleResult<T>();
 
             if (loadedModuls.ContainsKey(moduleName))
             {
-                result.Result = (T)loadedModuls[moduleName].HandleMessage(methodName, args);
+                try
+                {
+                    result.Content = (T)loadedModuls[moduleName].HandleMessage(methodName, args);
+
+                }
+                catch (Exception ex)
+                {
+                    result.Exception = ex;
+                }
             }
             else
             {
                 PerprocessingMessageList(moduleName).Add(new ModuleMessage(moduleName, methodName, args));
 
-                result.Error = string.Format("[{0}] not created !!! we'll cache until {0} to created.", moduleName);
+                result.Message = string.Format("[{0}] not created !!! we'll cache until {0} to created.", moduleName);
             }
 
             return result;
@@ -319,11 +365,31 @@ namespace NetExtension.Core.Framework
             return perprocessingMsg[moduleName];
 
         }
-      
+
+
+         class ModuleResult: IModuleResult
+        {
+            public string Message { get; set; }
+
+            public Exception Exception { get; set; }
+
+            public object Content { get; set; }
+        }
+
+        class ModuleResult<T> : IModuleResult<T>
+        {
+            public string Message { get; set; }
+
+            public Exception Exception { get; set; }
+
+            public T Content { get; set; }
+        }
+
+
         /// <summary>
         /// 
         /// </summary>
-         class ModuleMessage
+        class ModuleMessage
         {
 
             public string  Module { get; set; }

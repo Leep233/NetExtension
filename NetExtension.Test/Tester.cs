@@ -104,9 +104,9 @@ namespace NetExtension.Test
             ModuleManager.Instance.SendMessage(moduleName, "PublicMethod", 1);
 
 
-            ModuleResult<string> result = ModuleManager.Instance.SendMessage<string>(moduleName, "PublicMethod", "Hello world");
+            IModuleResult<string> result = ModuleManager.Instance.SendMessage<string>(moduleName, "PublicMethod", "Hello world");
 
-            Console.WriteLine(result.Result);
+            Console.WriteLine(result.Content);
 
         }
     }

@@ -4,13 +4,11 @@ using NetExtension.Core.Framework;
 using NetExtension.Core.Text;
 using NetExtension.Test;
 
-using System.Text.RegularExpressions;
+ModuleTest();
 
-string str = "     0XF,0XE0,0XAA,   0XEAFF,    0X1234,   0xffff       ";
+void ModuleTest() {
+    Tester.Register();
 
+    Tester.ExecuteModuleFunction();
 
-byte[] bytes = StringConverter.ToBytes(str);
-
-
-Console.WriteLine(StringConverter.ToString(bytes));
-
+}
