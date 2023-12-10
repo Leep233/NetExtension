@@ -10,44 +10,53 @@ namespace NetExtension.Core.Text
     public static class StringConverter
     {
 
-        private const string HEX_PRIFEX = "0x";
+        private const string HEX_PRIFEX = "0x";   
 
-        /// <summary>
-        /// Hex 转 byte数组
-        /// </summary>
-        /// <param name="hexString">需要转换的字符串</param>
-        /// <returns></returns>
-        public static byte[] HexStringToBytes(string hexString)
+        public static byte[] ToBytes(string hexString)
         {
-            hexString = hexString.Replace("\n", "").
-                Replace(" ", "").
-                Replace(",", "").ToLower().
-                Replace(HEX_PRIFEX, "");
-              
-            if ((hexString.Length % 2) != 0)
-                hexString += " ";
-            byte[] returnBytes = new byte[hexString.Length / 2];
-            for (int i = 0; i < returnBytes.Length; i++)
-                returnBytes[i] = Convert.ToByte(hexString.Substring(i * 2, 2), 16);
-            return returnBytes;
+            string content = hexString.Replace("\n", "").
+               Replace(" ", "").
+               Replace(",", "").ToLower().
+               Replace(HEX_PRIFEX, "");
+
+            if ((content.Length % 2) != 0)
+                content.Insert(0,"0");
+
+            int length = content.Length/2;
+
+            byte[] result = new byte[length];
+
+            for (int i = 0; i < result.Length; i++)
+            {
+                string str = content.Substring(i * 2, 2);
+
+                Console.WriteLine(str);
+
+                result[i] = Convert.ToByte(str, 16);
+            }
+
+            return result;
         }
 
+
         /// <summary>
-        /// byte数组转Hex
+        /// 
         /// </summary>
-        /// <param name="bytes">需要转成的二进制数组</param>
+        /// <param name="content"></param>
+        /// <param name="tobase">2,8,16</param>
         /// <returns></returns>
-        public static string BytesToHexString(byte[] bytes)
+        public static string ToString(byte[] content, int tobase = 16)
         {
-            string returnStr = "";
-            if (bytes != null)
+            if(content is null || content.Length<=0) return string.Empty;
+
+            string [] strs = new string [content.Length];
+
+            for (int i = 0; i < content.Length; i++)
             {
-                for (int i = 0; i < bytes.Length; i++)
-                {
-                    returnStr += string.Format(" {0}{1}", HEX_PRIFEX,bytes[i].ToString("X2"));
-                }
+                strs[i] = Convert.ToString(content[i], tobase);
             }
-            return returnStr;
+
+            return string.Join(" ", strs);
         }
 
     }

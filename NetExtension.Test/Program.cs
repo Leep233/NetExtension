@@ -9,8 +9,8 @@ using System.Text.RegularExpressions;
 string str = "     0XFF,0XE0,0XAA,   0XEAFF,    0X1234,   0xffff       ";
 
 
-byte[] bytes = StringConverter.HexStringToBytes(str);
+byte[] bytes = StringConverter.ToBytes(str);
 
 
-Console.WriteLine(StringConverter.BytesToHexString(bytes));
+Console.WriteLine(StringConverter.ToString(bytes));
 
