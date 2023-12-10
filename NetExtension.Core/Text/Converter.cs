@@ -18,20 +18,20 @@ namespace NetExtension.Core.Text
                Replace(" ", "").
                Replace(",", "").ToLower().
                Replace(HEX_PRIFEX, "");
-
+  
             if ((content.Length % 2) != 0)
-                content.Insert(0,"0");
+                content = content.Insert(0,"0");
 
             int length = content.Length/2;
+
+            Console.WriteLine(content);
 
             byte[] result = new byte[length];
 
             for (int i = 0; i < result.Length; i++)
             {
                 string str = content.Substring(i * 2, 2);
-
-                Console.WriteLine(str);
-
+              
                 result[i] = Convert.ToByte(str, 16);
             }
 

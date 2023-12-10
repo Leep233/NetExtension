@@ -6,7 +6,7 @@ using NetExtension.Test;
 
 using System.Text.RegularExpressions;
 
-string str = "     0XFF,0XE0,0XAA,   0XEAFF,    0X1234,   0xffff       ";
+string str = "     0XF,0XE0,0XAA,   0XEAFF,    0X1234,   0xffff       ";
 
 
 byte[] bytes = StringConverter.ToBytes(str);
